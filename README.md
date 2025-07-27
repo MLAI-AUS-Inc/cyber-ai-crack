@@ -1,6 +1,6 @@
 # Slack Bot (Python Version)
 
-A Python-based Slack bot using the Slack Bolt framework that integrates with Google Gemini 2.5 Flash via OpenAI's client library.
+A Python-based Slack bot using the synchronous Slack Bolt framework that integrates with Google Gemini 2.5 Flash via OpenAI's client library.
 
 ## Setup
 

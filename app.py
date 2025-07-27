@@ -25,12 +25,11 @@ The system prompt is defined in prompt.py and uses the DISCOUNT_CODE environment
 """
 import os
 import re
-import asyncio
 import logging
 from datetime import datetime
 from openai import OpenAI
-from slack_bolt.async_app import AsyncApp
-from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
+from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
 from dotenv import load_dotenv
 from prompt import get_system_prompt
 
@@ -78,10 +77,7 @@ client = OpenAI(
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
 )
 
-app = AsyncApp(
-    token=SLACK_BOT_TOKEN,
-    process_before_response=True
-)
+app = App(token=SLACK_BOT_TOKEN)
 
 def call_llm(prompt: str) -> str:
     """Call the Google Gemini API using OpenAI client"""
@@ -105,7 +101,7 @@ def call_llm(prompt: str) -> str:
 
 # Listen for mentions (when someone tags the bot)
 @app.event("app_mention")
-async def handle_mention(event, say, client):
+def handle_mention(event, say, client):
     """Handle when the bot is mentioned with @botname"""
     
     # Extract event details
@@ -116,7 +112,7 @@ async def handle_mention(event, say, client):
     
     # Get user information
     try:
-        user_info = await client.users_info(user=user_id)
+        user_info = client.users_info(user=user_id)
         username = user_info['user']['name']
         display_name = user_info['user'].get('profile', {}).get('display_name', username)
         real_name = user_info['user'].get('profile', {}).get('real_name', username)
@@ -128,9 +124,12 @@ async def handle_mention(event, say, client):
     
     # Log detailed mention information
     logger.info("=== BOT MENTION RECEIVED ===")
+    logger.info(f"Message ID: {message_ts}")
     logger.info(f"Channel ID: {channel_id}")
     logger.info(f"User ID: {user_id}")
+    logger.info(f"Username: @{username}")
     logger.info(f"Display Name: {display_name}")
+    logger.info(f"Real Name: {real_name}")
     logger.info(f"Original Message: {original_text}")
     logger.info("=============================")
     
@@ -145,26 +144,23 @@ async def handle_mention(event, say, client):
             logger.info("Sending to Gemini...")
             response = call_llm(cleaned_text)
             logger.info(f"Gemini Response: {response}")
-            await say(response)
+            say(response)
         else:
             logger.info("Empty message, sending default greeting")
-            await say("Hi! How can I help you?")
+            say("Hi! How can I help you?")
             
     except Exception as error:
         logger.error(f'Error processing mention: {error}')
-        await say('Sorry, I encountered an error processing your message.')
+        say('Sorry, I encountered an error processing your message.')
 
 # Start the app
-async def main():
-    logger.info("⚡️ Initializing Slack Bot...")
-    handler = AsyncSocketModeHandler(app, SLACK_APP_TOKEN)
-    logger.info("🚀 Starting Socket Mode connection...")
-    await handler.start_async()
-
 if __name__ == "__main__":
     logger.info("⚡️ Bolt app is starting...")
+    logger.info("⚡️ Initializing Slack Bot...")
     try:
-        asyncio.run(main())
+        handler = SocketModeHandler(app, SLACK_APP_TOKEN)
+        logger.info("🚀 Starting Socket Mode connection...")
+        handler.start()
     except KeyboardInterrupt:
         logger.info("👋 Bot stopped by user")
     except Exception as e:
