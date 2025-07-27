@@ -15,7 +15,7 @@ app_mention         (Essential!)
 
 Environment Variables:
 SLACK_BOT_TOKEN     (Required): Bot token for Slack API access
-SLACK_APP_TOKEN     (Required): App token for Socket Mode connection
+SLACK_SIGNING_SECRET (Required): Signing secret for HTTP mode webhook verification
 GOOGLE_API_KEY      (Required): Google API key for Gemini API access (use with OpenAI-compatible endpoint)
 DISCOUNT_CODE       (Optional): The secret discount code to guard (default: 4b0daf70118becc1)
 
@@ -29,7 +29,6 @@ import logging
 from datetime import datetime
 from openai import OpenAI
 from slack_bolt import App
-from slack_bolt.adapter.socket_mode import SocketModeHandler
 from dotenv import load_dotenv
 from prompt import get_system_prompt
 
@@ -51,8 +50,10 @@ SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN")
 # Check for required environment variables
 if not SLACK_BOT_TOKEN:
     raise ValueError("SLACK_BOT_TOKEN environment variable is required")
-if not SLACK_APP_TOKEN:
-    raise ValueError("SLACK_APP_TOKEN environment variable is required")
+
+SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET")
+if not SLACK_SIGNING_SECRET:
+    raise ValueError("SLACK_SIGNING_SECRET environment variable is required")
 
 # Optional environment variables with defaults
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
@@ -67,7 +68,8 @@ SYSTEM_PROMPT = get_system_prompt(DISCOUNT_CODE)
 # Log startup configuration
 logger.info("=== SLACK BOT STARTUP ===")
 logger.info(f"Bot Token: {SLACK_BOT_TOKEN[:12]}..." if SLACK_BOT_TOKEN else "No Bot Token")
-logger.info(f"App Token: {SLACK_APP_TOKEN[:12]}..." if SLACK_APP_TOKEN else "No App Token")
+logger.info(f"Signing Secret: {SLACK_SIGNING_SECRET[:12]}..." if SLACK_SIGNING_SECRET else "No Signing Secret")
+logger.info(f"Google API Key: {GOOGLE_API_KEY[:12]}..." if GOOGLE_API_KEY else "No Google API Key")
 logger.info(f"Discount Code: {DISCOUNT_CODE}")
 logger.info("==========================")
 
@@ -77,7 +79,10 @@ client = OpenAI(
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
 )
 
-app = App(token=SLACK_BOT_TOKEN)
+app = App(
+    token=SLACK_BOT_TOKEN,
+    signing_secret=SLACK_SIGNING_SECRET
+)
 
 def call_llm(prompt: str) -> str:
     """Call the Google Gemini API using OpenAI client"""
@@ -157,10 +162,13 @@ def handle_mention(event, say, client):
 if __name__ == "__main__":
     logger.info("⚡️ Bolt app is starting...")
     logger.info("⚡️ Initializing Slack Bot...")
+    
+    # Get port from environment variable or default to 3000
+    port = int(os.environ.get("PORT", 3000))
+    logger.info(f"🚀 Starting HTTP server on port {port}...")
+    
     try:
-        handler = SocketModeHandler(app, SLACK_APP_TOKEN)
-        logger.info("🚀 Starting Socket Mode connection...")
-        handler.start()
+        app.start(port=port)
     except KeyboardInterrupt:
         logger.info("👋 Bot stopped by user")
     except Exception as e:

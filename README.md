@@ -1,6 +1,6 @@
 # Slack Bot (Python Version)
 
-A Python-based Slack bot using the synchronous Slack Bolt framework that integrates with Google Gemini 2.5 Flash via OpenAI's client library.
+A Python-based Slack bot using HTTP mode with the Slack Bolt framework that integrates with Google Gemini 2.5 Flash via OpenAI's client library.
 
 ## Setup
 
@@ -37,7 +37,7 @@ The bot will respond to mentions with Gemini-generated responses. Currently, the
 The following environment variables must be set:
 
 - `SLACK_BOT_TOKEN`: Your Slack bot token (starts with `xoxb-`)
-- `SLACK_APP_TOKEN`: Your Slack app token for Socket Mode (starts with `xapp-`)
+- `SLACK_SIGNING_SECRET`: Your Slack signing secret for HTTP mode webhook verification
 - `GOOGLE_API_KEY`: Your Google API key for Gemini API access
 
 ### Optional Environment Variables
@@ -57,7 +57,7 @@ You can set environment variables in several ways:
 1. **Using a `.env` file** (create in the project root):
 ```
 SLACK_BOT_TOKEN=xoxb-your-bot-token-here
-SLACK_APP_TOKEN=xapp-your-app-token-here
+SLACK_SIGNING_SECRET=your-signing-secret-here
 GOOGLE_API_KEY=your-google-api-key-here
 DISCOUNT_CODE=MYSECRET
 ```
@@ -65,7 +65,7 @@ DISCOUNT_CODE=MYSECRET
 2. **Using export commands** (Linux/macOS):
 ```bash
 export SLACK_BOT_TOKEN=xoxb-your-bot-token-here
-export SLACK_APP_TOKEN=xapp-your-app-token-here
+export SLACK_SIGNING_SECRET=your-signing-secret-here
 export GOOGLE_API_KEY=your-google-api-key-here
 ```
 
@@ -86,25 +86,40 @@ Go to api.slack.com/apps → Your App → OAuth & Permissions → Scopes and add
 - `mpim:read` (For group DMs)
 
 ### Event Subscriptions
-Go to Event Subscriptions → Subscribe to bot events and add:
+Go to Event Subscriptions → Enable Events → Subscribe to bot events and add:
 
 - `app_mention` (Essential! This is the only event the bot currently responds to)
 
+**Request URL**: Set this to your deployed app URL + `/slack/events` (e.g., `https://your-app.ondigitalocean.app/slack/events`)
+
 ## Notes
 
+- **HTTP Mode**: Bot runs as a web server and receives events via webhooks (more production-ready than Socket Mode)
 - The bot only responds to `@mentions` in channels - it does not respond to direct messages or regular channel messages
 - Error handling is included for both Slack API and Gemini API failures  
 - The Gemini system prompt includes a secret guarding mechanism to protect the discount code
 - Uses Google's OpenAI-compatible endpoint for cleaner integration
 - If required environment variables are missing, the bot will raise an error on startup
+- **Public URL Required**: Your app needs to be publicly accessible for Slack to send webhooks
 
-## Getting a Google API Key
+## Getting Required Credentials
+
+### Google API Key
 
 To use this bot, you need a Google API key for Gemini:
 
 1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
 2. Create a new API key
 3. Set it as the `GOOGLE_API_KEY` environment variable
+
+### Slack Signing Secret
+
+For HTTP mode, you need the signing secret:
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → Your App
+2. Go to **Basic Information** → **App Credentials**
+3. Copy the **Signing Secret**
+4. Set it as the `SLACK_SIGNING_SECRET` environment variable
 
 ## Security Challenge
 
