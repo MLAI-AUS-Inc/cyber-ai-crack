@@ -26,9 +26,9 @@ The system prompt is defined in prompt.py and uses the DISCOUNT_CODE environment
 import os
 import re
 import logging
-from datetime import datetime
 from openai import OpenAI
 from slack_bolt import App
+from slack_sdk import WebClient
 from dotenv import load_dotenv
 from prompt import get_system_prompt
 
@@ -83,6 +83,7 @@ app = App(
     token=SLACK_BOT_TOKEN,
     signing_secret=SLACK_SIGNING_SECRET
 )
+sync_client = WebClient(token=SLACK_BOT_TOKEN)
 
 def call_llm(prompt: str) -> str:
     """Call the Google Gemini API using OpenAI client"""
@@ -117,7 +118,7 @@ def handle_mention(event, say, client):
     
     # Get user information
     try:
-        user_info = client.users_info(user=user_id)
+        user_info = sync_client.users_info(user=user_id)
         username = user_info['user']['name']
         display_name = user_info['user'].get('profile', {}).get('display_name', username)
         real_name = user_info['user'].get('profile', {}).get('real_name', username)
@@ -149,10 +150,10 @@ def handle_mention(event, say, client):
             logger.info("Sending to Gemini...")
             response = call_llm(cleaned_text)
             logger.info(f"Gemini Response: {response}")
-            say(response)
+            say(f"@{display_name} {response}")
         else:
             logger.info("Empty message, sending default greeting")
-            say("Hi! How can I help you?")
+            say(f"@{display_name} Hi! How can I help you?")
             
     except Exception as error:
         logger.error(f'Error processing mention: {error}')
