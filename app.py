@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 # Get environment variables
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN")
+SHOULD_REPLY_IN_CHANNEL = os.environ.get("SHOULD_REPLY_IN_CHANNEL", "true").lower() == "true"
 
 # Check for required environment variables
 if not SLACK_BOT_TOKEN:
@@ -150,10 +151,19 @@ def handle_mention(event, say, client):
             logger.info("Sending to Gemini...")
             response = call_llm(cleaned_text)
             logger.info(f"Gemini Response: {response}")
-            say(f"@{display_name} {response}")
+
+            if SHOULD_REPLY_IN_CHANNEL:
+                # Reply in main channel
+                say(f"<@{user_id}> {response}")
+            # Reply in thread
+            say(f"<@{user_id}> {response}", thread_ts=message_ts)
         else:
             logger.info("Empty message, sending default greeting")
-            say(f"@{display_name} Hi! How can I help you?")
+            if SHOULD_REPLY_IN_CHANNEL:
+                # Reply in main channel
+                say(f"<@{user_id}> Hi! How can I help you?")
+            # Reply in thread
+            say(f"<@{user_id}> Hi! How can I help you?", thread_ts=message_ts)
             
     except Exception as error:
         logger.error(f'Error processing mention: {error}')
